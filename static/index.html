@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <body>
+    <input type="file" id="fileInput" />
+    <img id="frame" alt="First frame will appear here" />
+    <script>
+      const input = document.getElementById('fileInput');
+      const img = document.getElementById('frame');
+      input.addEventListener('change', async () => {
+        const file = input.files[0];
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch('/upload', { method: 'POST', body: formData });
+        const blob = await res.blob();
+        img.src = URL.createObjectURL(blob);
+      });
+    </script>
+  </body>
+</html>
