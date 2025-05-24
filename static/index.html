@@ -2,17 +2,65 @@
 <html>
   <body>
     <input type="file" id="fileInput" />
+    <div id="metadata"></div>
+    <label>
+      Interval: <input type="number" id="interval" value="1" min="1" />
+    </label>
+    <select id="mode">
+      <option value="seconds">Seconds</option>
+      <option value="frames">Frames</option>
+    </select>
+    <button id="extractBtn">Extract Frames</button>
     <img id="frame" alt="First frame will appear here" />
     <script>
       const input = document.getElementById('fileInput');
       const img = document.getElementById('frame');
+      const metadataDiv = document.getElementById('metadata');
+      const extractBtn = document.getElementById('extractBtn');
+      const intervalInput = document.getElementById('interval');
+      const modeSelect = document.getElementById('mode');
+      let currentFile;
+
       input.addEventListener('change', async () => {
-        const file = input.files[0];
-        const formData = new FormData();
-        formData.append('file', file);
-        const res = await fetch('/upload', { method: 'POST', body: formData });
+        currentFile = input.files[0];
+        if (!currentFile) return;
+
+        // Preview first frame
+        const previewForm = new FormData();
+        previewForm.append('file', currentFile);
+        let res = await fetch('/upload', { method: 'POST', body: previewForm });
         const blob = await res.blob();
         img.src = URL.createObjectURL(blob);
+
+        // Fetch metadata
+        const metaForm = new FormData();
+        metaForm.append('file', currentFile);
+        res = await fetch('/metadata', { method: 'POST', body: metaForm });
+        if (res.ok) {
+          const meta = await res.json();
+          metadataDiv.innerText = `Width: ${meta.width}, Height: ${meta.height}, FPS: ${meta.fps}, Format: ${meta.format}, Pixel AR: ${meta.pixel_aspect_ratio}`;
+        } else {
+          metadataDiv.innerText = 'Failed to load metadata';
+        }
+      });
+
+      extractBtn.addEventListener('click', async () => {
+        if (!currentFile) return;
+        const formData = new FormData();
+        formData.append('file', currentFile);
+        formData.append('interval', intervalInput.value);
+        formData.append('mode', modeSelect.value);
+        const res = await fetch('/extract_frames', { method: 'POST', body: formData });
+        if (res.ok) {
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'frames.zip';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        }
       });
     </script>
   </body>
