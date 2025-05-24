@@ -43,17 +43,27 @@ def get_video_metadata(input_path):
     }
 
 
-def extract_frames(input_path, output_dir, interval=1, by_seconds=False):
-    """Extract frames from a video using ffmpeg."""
+def extract_frames(input_path, output_dir, interval=1, mode="seconds"):
+    """Extract frames from a video at a given interval.
+
+    Args:
+        input_path (str): Path to the input video.
+        output_dir (str): Directory where frames will be saved.
+        interval (float): Interval value depending on ``mode``.
+        mode (str): ``"seconds"`` to grab one frame every ``interval`` seconds or
+            ``"frames"`` to grab every ``interval``-th frame.
+    Returns:
+        list[str]: Paths to the extracted frames.
+    """
     os.makedirs(output_dir, exist_ok=True)
     video_id = uuid.uuid4().hex
     pattern = os.path.join(output_dir, f"{video_id}_%06d.jpg")
 
     cmd = ["ffmpeg", "-y", "-i", input_path]
-    if by_seconds and interval > 1:
+    if mode == "seconds" and interval > 1:
         cmd += ["-vf", f"fps=1/{interval}"]
-    elif interval > 1:
-        cmd += ["-vf", f"select='not(mod(n\\,{interval}))'", "-vsync", "vfr"]
+    elif mode == "frames" and interval > 1:
+        cmd += ["-vf", f"select=not(mod(n\\,{int(interval)}))", "-vsync", "vfr"]
     cmd.append(pattern)
 
     subprocess.run(cmd, check=True)
@@ -66,14 +76,20 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract frames from a video")
     parser.add_argument("input", help="Path to input video")
     parser.add_argument("output_dir", help="Directory to save frames")
-    parser.add_argument("--interval", type=int, default=1, help="Frame interval")
     parser.add_argument(
-        "--seconds",
-        action="store_true",
-        help="Treat interval as seconds between frames",
+        "--interval",
+        type=float,
+        default=1,
+        help="Interval in seconds or frames depending on mode",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["seconds", "frames"],
+        default="seconds",
+        help="Extraction mode",
     )
     args = parser.parse_args()
 
-    paths = extract_frames(args.input, args.output_dir, args.interval, args.seconds)
+    paths = extract_frames(args.input, args.output_dir, args.interval, args.mode)
     for p in paths:
         print(p)
